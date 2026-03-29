@@ -1,3 +1,5 @@
+## Source Code
+
 ```bash
 claude \
   --dangerously-skip-permissions \
@@ -16,3 +18,7 @@ claude \
 6. 在菜单栏提供 LLM Refinement 子菜单，包含启用/禁用开关和 Settings 入口。Settings 窗口包含 API Base URL、API Key、Model 三个输入框，API Key 输入框要能完全清空，以及 Test 和 Save 按钮。松开 Fn 键后如果 LLM 已启用且已配置，悬浮窗显示 Refining... 状态，等 LLM 返回后再注入最终文本。
 7. 应用以 LSUIElement 模式运行（仅菜单栏图标，无 Dock 图标）。使用 Swift Package Manager 构建，提供 Makefile（build/run/install/clean），构建产物为签名的 .app bundle。"
 ```
+
+## Dist
+
+https://github.com/yetone/voice-input-dist
