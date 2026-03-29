@@ -2,7 +2,7 @@ import Cocoa
 import Speech
 import AVFoundation
 import CoreGraphics
-import Carbon
+import Carbon.HIToolbox
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?

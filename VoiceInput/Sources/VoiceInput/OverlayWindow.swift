@@ -56,7 +56,8 @@ class OverlayWindow: NSPanel {
     }
     
     private func setupVisualEffect() {
-        visualEffectView = NSVisualEffectView(frame: bounds)
+        let contentViewFrame = contentView?.frame ?? NSRect(x: 0, y: 0, width: 280, height: 56)
+        visualEffectView = NSVisualEffectView(frame: contentViewFrame)
         // Use .contentBackground for macOS 13 compatibility (hudWindow requires macOS 14+)
         if #available(macOS 14.0, *) {
             visualEffectView.material = .hudWindow
@@ -251,7 +252,7 @@ class WaveformBar: NSView {
         let path = CGMutablePath()
         let y = (bounds.height - barHeight) / 2
         // Use cornerWidth and cornerHeight parameters for macOS 13 compatibility
-        path.addRoundedRect(in: CGRect(x: 0, y: y, width: bounds.width, height: barHeight), cornerWidth: 3, cornerHeight: 3)
+        path.addRoundedRect(in: CGRect(x: 0, y: y, width: bounds.width, height: max(barHeight, 0)), cornerWidth: 3, cornerHeight: 3)
         
         shapeLayer.path = path
     }
@@ -264,3 +265,19 @@ extension OverlayWindow {
         return AppDelegate.shared?.recordingState ?? false
     }
 }
+
+// Helper extension for macOS 13 compatibility
+extension NSView {
+    func view(withTag tag: Int) -> NSView? {
+        if self.tag == tag {
+            return self
+        }
+        for subview in self.subviews {
+            if let found = subview.view(withTag: tag) {
+                return found
+            }
+        }
+        return nil
+    }
+}
+
