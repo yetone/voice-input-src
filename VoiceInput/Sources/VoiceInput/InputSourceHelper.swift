@@ -1,5 +1,5 @@
 import Cocoa
-import Carbon
+import Carbon.HIToolbox
 
 struct InputSourceHelper {
     static func getCurrentInputSource() -> TISInputSource? {
