@@ -9,26 +9,29 @@ struct InputSourceHelper {
     static func isCJKInput(source: TISInputSource?) -> Bool {
         guard let source = source else { return false }
         
-        if let category = TISGetInputSourceProperty(source, kTISPropertyInputSourceCategory) as? String {
-            return category == kTISCategoryChineseInput ||
-                   category == kTISCategoryJapaneseInput ||
-                   category == kTISCategoryKoreanInput
-        }
+        let categoryPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceCategory)
+        guard let categoryPtr = categoryPtr else { return false }
+        let category = Unmanaged<CFString>.fromOpaque(categoryPtr).takeUnretainedValue() as String
         
-        return false
+        return category == kTISCategoryChineseInput ||
+               category == kTISCategoryJapaneseInput ||
+               category == kTISCategoryKoreanInput
     }
     
     static func switchToASCIIInput() -> Bool {
-        guard let inputSources = TISCopyInputSourceList(kCFBooleanTrue, kTISPropertyInputSourceType == "Keyboard")?.takeRetainedValue() as? [TISInputSource] else {
+        guard let inputSources = TISCopyInputSourceList(kTISPropertyInputSourceType == "Keyboard" as CFString)?.takeRetainedValue() as? [TISInputSource] else {
             return false
         }
         
         for source in inputSources {
-            if let lang = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguage) as? String,
-               lang == "en" {
-                TISEnableInputSource(source)
-                TISSelectInputSource(source)
-                return true
+            let langPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguage)
+            if let langPtr = langPtr {
+                let lang = Unmanaged<CFString>.fromOpaque(langPtr).takeUnretainedValue() as String
+                if lang == "en" {
+                    TISEnableInputSource(source)
+                    TISSelectInputSource(source)
+                    return true
+                }
             }
         }
         

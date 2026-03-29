@@ -1,8 +1,8 @@
 import Cocoa
 import Speech
 import AVFoundation
-import AVFAudio
 import CoreGraphics
+import Carbon
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
@@ -19,6 +19,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var currentTranscript = ""
     
     private let userDefaults = UserDefaults.standard
+    
+    static weak var shared: AppDelegate?
+    
+    var recordingState: Bool {
+        return isRecording
+    }
     
     override init() {
         super.init()
@@ -62,15 +68,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // Request microphone access
-        AVAudioSession.sharedInstance().requestRecordPermission { granted in
-            DispatchQueue.main.async {
-                if granted {
-                    print("Microphone access granted")
-                } else {
-                    print("Microphone access denied")
+        // Request microphone access (macOS 14+ uses AVAudioSession, fallback for macOS 13)
+        if #available(macOS 14.0, *) {
+            // AVAudioSession is available on macOS 14+
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        print("Microphone access granted")
+                    } else {
+                        print("Microphone access denied")
+                    }
                 }
             }
+        } else {
+            // For macOS 13, we rely on the system prompt when first accessing the microphone
+            print("Microphone access will be requested on first use")
         }
     }
     
@@ -243,14 +255,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         
-        let inputNode = AVAudioEngine.sharedInstance().inputNode
+        let inputNode = AVAudioEngine().inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             self.recognitionRequest?.append(buffer)
         }
         
-        audioEngine = AVAudioEngine.sharedInstance()
+        audioEngine = AVAudioEngine()
         
         do {
             try audioEngine?.start()
@@ -362,29 +374,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pasteboard.setString(text, forType: .string)
         
         // Check current input source and switch to ASCII if needed
-        let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
-        let sourceLang = TISGetInputSourceProperty(source, kTISPropertyInputSourceCategory) as? String
-        
         var switchedSource = false
-        if sourceLang == kTISCategoryChineseInput || sourceLang == kTISCategoryJapaneseInput || sourceLang == kTISCategoryKoreanInput {
+        if isCJKInputSource() {
             // Switch to US keyboard
-            if let usSource = TISCopyInputSourceList(kTISPropertyInputSourceType == "Keyboard").takeRetainedValue() as? [TISInputSource] {
-                for src in usSource {
-                    if let lang = TISGetInputSourceProperty(src, kTISPropertyInputSourceLanguage) as? String,
-                       lang == "en" {
-                        TISEnableInputSource(src)
-                        TISSelectInputSource(src)
-                        switchedSource = true
-                        break
-                    }
-                }
+            if let usSource = getUSInputSource() {
+                TISEnableInputSource(usSource)
+                TISSelectInputSource(usSource)
+                switchedSource = true
             }
         }
         
         // Small delay to ensure source switch completes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Simulate Cmd+V
-            let source = CGEventSource(state: .combinedSessionState)
+            let source = CGEventSource(stateID: .combinedSessionState)
             let flags = CGEventFlags.maskCommand
             
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
@@ -404,9 +407,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             
             // Restore original input source if we switched
-            if switchedSource, let origSource = source {
+            if switchedSource, let origSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() {
                 TISSelectInputSource(origSource)
             }
         }
+    }
+    
+    private func isCJKInputSource() -> Bool {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+            return false
+        }
+        let categoryPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceCategory)
+        guard let category = categoryPtr else { return false }
+        let categoryStr = Unmanaged<CFString>.fromOpaque(category).takeUnretainedValue() as String
+        
+        return categoryStr == kTISCategoryChineseInput || 
+               categoryStr == kTISCategoryJapaneseInput || 
+               categoryStr == kTISCategoryKoreanInput
+    }
+    
+    private func getUSInputSource() -> TISInputSource? {
+        guard let inputSources = TISCopyInputSourceList(kTISPropertyInputSourceType == "Keyboard" as CFString)?.takeRetainedValue() as? [TISInputSource] else {
+            return nil
+        }
+        
+        for src in inputSources {
+            let langPtr = TISGetInputSourceProperty(src, kTISPropertyInputSourceLanguage)
+            if let lang = langPtr {
+                let langStr = Unmanaged<CFString>.fromOpaque(lang).takeUnretainedValue() as String
+                if langStr == "en" {
+                    return src
+                }
+            }
+        }
+        return nil
     }
 }

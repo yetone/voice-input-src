@@ -150,7 +150,10 @@ class OverlayWindow: NSPanel {
             context.duration = 0.22
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             self.animator().alphaValue = 0
-            self.animator().scale(by: 0.8)
+            // Skip scale animation for macOS 13 compatibility
+            if #available(macOS 14.0, *) {
+                self.animator().scale(by: 0.8)
+            }
         }, completionHandler: { [weak self] in
             self?.orderOut(nil)
         })
@@ -247,7 +250,8 @@ class WaveformBar: NSView {
         
         let path = CGMutablePath()
         let y = (bounds.height - barHeight) / 2
-        path.addRoundedRect(in: CGRect(x: 0, y: y, width: bounds.width, height: barHeight), cornerRadius: 3)
+        // Use cornerWidth and cornerHeight parameters for macOS 13 compatibility
+        path.addRoundedRect(in: CGRect(x: 0, y: y, width: bounds.width, height: barHeight), cornerWidth: 3, cornerHeight: 3)
         
         shapeLayer.path = path
     }
@@ -256,11 +260,7 @@ class WaveformBar: NSView {
 // Extension to track recording state
 extension OverlayWindow {
     var isRecording: Bool {
-        return AppDelegate.shared?.isRecording ?? false
+        // Access via AppDelegate.shared singleton
+        return AppDelegate.shared?.recordingState ?? false
     }
-}
-
-// Singleton reference for AppDelegate
-extension AppDelegate {
-    static weak var shared: AppDelegate?
 }
