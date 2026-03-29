@@ -12,7 +12,7 @@ class AudioLevelMonitor {
     func startMonitoring() {
         guard !isMonitoring else { return }
         
-        audioEngine = AVAudioEngine.sharedInstance()
+        audioEngine = AVAudioEngine()
         inputNode = audioEngine?.inputNode
         
         let recordingFormat = inputNode?.outputFormat(forBus: 0)

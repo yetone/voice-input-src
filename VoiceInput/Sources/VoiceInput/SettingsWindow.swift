@@ -168,9 +168,13 @@ class SettingsWindow: NSWindow {
     }
     
     private func updateStatus(_ message: String, color: NSColor) {
-        if let statusLabel = contentView?.view(withTag: 999) as? NSTextField {
-            statusLabel.stringValue = message
-            statusLabel.textColor = color
+        guard let contentView = contentView else { return }
+        for subview in contentView.subviews {
+            if let label = subview as? NSTextField, label.tag == 999 {
+                label.stringValue = message
+                label.textColor = color
+                break
+            }
         }
     }
 }
